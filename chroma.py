@@ -1,6 +1,8 @@
 import pyaudio
+import time
 from config import *
 from display import Display
+
 
 FORMAT = pyaudio.paFloat32
 
@@ -13,15 +15,16 @@ stream = pyaudio.Stream(p,
                         channels=CHANNELS,
                         rate=RATE,
                         input=True,
-                        input_device_index=DEVICE,
+                        input_device_index=DEVICE
                         )
-
-while stream.is_active():
-    data = stream.read(CHUNK, False)
-    d.process(data)
-
-
-stream.stop_stream()
-stream.close()
-
-p.terminate()
+try:
+    while stream.is_active():
+        data = stream.read(CHUNK, False)
+        d.process(data)
+except KeyboardInterrupt:
+    pass
+finally:
+    stream.stop_stream()
+    stream.close()
+    d.close()
+    p.terminate()
