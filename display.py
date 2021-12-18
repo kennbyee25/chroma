@@ -21,8 +21,9 @@ class Display:
         if rms < 29:
             self.count += 1
         else:
+            # TODO implement a better sleep/wake
             self.count = 0
-        if self.count < 150:  # sleep if inactive
+        if self.count < 300:  # sleep if inactive
             self.switch["smd5050"](data)
         elif self.count >= 15 and self.active:
             self.display.off()
@@ -32,3 +33,8 @@ class Display:
         self.display.close()
 
     # TODO add update loop separate from FFT
+    def update(self):
+        # interpolate
+        # update at rate (60 Hz)
+        # predictive filtering?
+        pass

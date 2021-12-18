@@ -8,8 +8,9 @@ from config import *
 class Ws281x:
     def __init__(self):
         # options
-        self.start_index = 32
-        self.max_vol = CHUNK / 40000
+        self.start_index = 33
+        # TODO smart volume/brightness controls?
+        self.max_vol = CHUNK / 80000
         self.smoothing = 4
         self.step = 0
         self.buf = np.empty((self.smoothing, 60))
@@ -43,6 +44,7 @@ class Ws281x:
         chroma = np.cos(np.pi * pitch_class)
         hue = ((-np.sign(chroma) * 3 - pitch_class + 8) % 12) / 12
         theta = hue * (2 * np.pi)
+        # todo change info to a struct-esque class?
         info = dict(
             pitch_class=pitch_class,
             chroma=chroma,
@@ -52,10 +54,14 @@ class Ws281x:
         return info
 
     def calculate_colors(self):
+        # TODO add ability to calculate color live
+        # that is, to support dynamic coloring as opposed to static
+        # this should be available as an option
         colors = np.empty((120, 3))
         for i, freq in enumerate(self.bin_centers):
             info = self.get_info_from_freq(freq)
             color = hsv_to_rgb(info["hue"], 1, 1)
+            # is this the most efficient? probably not
             colors[i][0] = color[0] * 32
             colors[i][1] = color[1] * 32
             colors[i][2] = color[2] * 32
@@ -64,17 +70,27 @@ class Ws281x:
     def process(self, data):
         data = np.frombuffer(data, np.float32)
         fft = np.abs(np.fft.rfft(data))
+        # TODO custom binning
         stats = binned_statistic(
             self.fftfreq,
             fft,
-            #statistic="sum",
+            statistic="sum",
             bins=self.bin_edges.tolist(),
             range=(self.freq_low, self.freq_high)
         )
         fft = stats.statistic
+        # select, re-organize, and consolidate bins to proper indexing
         fft = fft[self.indexing]
+        # normalize within standardized range
+        # todo this can be improved upon
+        fft /= self.max_vol
+        # bins can be empty
         fft = np.nan_to_num(fft)
-        fft = np.clip(fft / self.max_vol, 0, 1)
+        # squaring fft value is more representative of actual human sensory processing of
+        # audio and light (citation needed)
+        fft = fft ** 2
+        # smooth out transition (should be in its own function)
+        # similarly, this can be handled up in the Display class when update() is implemented
         if self.smoothing > 1:
             self.buf[:-1] = self.buf[1:]
             self.buf[-1] = fft.copy()
@@ -85,7 +101,8 @@ class Ws281x:
                     w += 1/(i+1)
                     fft += self.buf[i]
                 fft /= w
-        for i, (c, v) in enumerate(zip(self.colors, fft)):
+        self.vals = np.clip(fft, 0.0675, 1)
+        for i, (c, v) in enumerate(zip(self.colors, self.vals)):
             v_r, v_g, v_b = int(round(c[0]*v)), int(round(c[1]*v)), int(round(c[2]*v))
             r = 0x10000*v_r
             g = 0x100*v_g
