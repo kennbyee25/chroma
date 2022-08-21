@@ -8,10 +8,11 @@ from config import *
 class Ws281x:
     def __init__(self):
         # options
+        self.reverse_index = True
         self.start_index = 33
         # TODO smart volume/brightness controls?
-        self.max_vol = CHUNK / 80000
-        self.smoothing = 4
+        self.max_vol = CHUNK / 22
+        self.smoothing = 1
         self.step = 0
         self.buf = np.empty((self.smoothing, 60))
         
@@ -37,6 +38,8 @@ class Ws281x:
         
 
     def index(self):
+        if self.reverse_index:
+            return np.arange(self.start_index + 60, self.start_index)
         return np.arange(self.start_index, self.start_index + 60)
 
     def get_info_from_freq(self, f):
